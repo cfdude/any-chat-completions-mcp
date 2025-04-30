@@ -111,7 +111,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const client = new OpenAI({
         apiKey: AI_CHAT_KEY,
         baseURL: AI_CHAT_BASE_URL,
-        timeout: parseInt(AI_CHAT_TIMEOUT, 10),
+        timeout: parseInt(`${AI_CHAT_TIMEOUT}`, 10),
       });
 
       try {

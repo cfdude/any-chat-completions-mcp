@@ -117,9 +117,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
  * Handler for the chat tool.
  * Connects to an OpenAI SDK compatible AI Integration.
  */
-function toErrorResult(error: any, fallbackMessage: string) {
-  const errorMessage = error?.response?.data?.error?.message || error?.message || fallbackMessage;
-  console.error(fallbackMessage, errorMessage);
+function toErrorResult(error: any, logLabel: string) {
+  const errorMessage = error?.response?.data?.error?.message || error?.message || 'Unknown error occurred';
+  console.error(logLabel, errorMessage);
   return {
     content: [
       {

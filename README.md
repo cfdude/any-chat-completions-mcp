@@ -142,6 +142,34 @@ And then you can chat with other LLMs and it shows in chat like this:
 
 
 
+### Multi-turn conversations (OpenAI only)
+
+By default, every `chat-with-{name}` call is a fresh, stateless exchange — the model has no memory of prior calls. Set `AI_CHAT_ENABLE_CONVERSATIONS=true` to enable an opt-in mode that adds durable, multi-turn conversation state via OpenAI's Conversations + Responses APIs:
+
+```json
+{
+  "mcpServers": {
+    "chat-openai": {
+      "command": "npx",
+      "args": ["any-chat-completions-mcp"],
+      "env": {
+        "AI_CHAT_KEY": "OPENAI_KEY",
+        "AI_CHAT_NAME": "OpenAI",
+        "AI_CHAT_MODEL": "gpt-5.6",
+        "AI_CHAT_BASE_URL": "https://api.openai.com/v1",
+        "AI_CHAT_ENABLE_CONVERSATIONS": "true"
+      }
+    }
+  }
+}
+```
+
+With this enabled, two things change:
+- A new tool, `start-conversation-with-{name}`, creates a durable conversation and returns its ID.
+- `chat-with-{name}` accepts an optional `conversationId` argument. Pass the ID from `start-conversation-with-{name}` to thread a call through that conversation's full history instead of starting fresh; omit it for the original stateless behavior.
+
+**This only works against real OpenAI**, or a provider that separately documents support for the Conversations/Responses APIs. Most "OpenAI SDK compatible" providers (Perplexity, Groq, xAI, local models, etc.) only implement Chat Completions and will return an API error if you enable this flag against them. Leave the flag unset (the default) for any non-OpenAI provider.
+
 ### Installing via Smithery
 
 To install Any OpenAI Compatible API Integrations for Claude Desktop automatically via [Smithery](https://smithery.ai/server/any-chat-completions-mcp-server):

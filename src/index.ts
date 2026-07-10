@@ -22,6 +22,7 @@ const AI_CHAT_MODEL = process.env.AI_CHAT_MODEL;
 const AI_CHAT_NAME = process.env.AI_CHAT_NAME;
 const AI_CHAT_TIMEOUT = process.env.AI_CHAT_TIMEOUT || "30000";
 const AI_CHAT_SYSTEM_PROMPT = process.env.AI_CHAT_SYSTEM_PROMPT;
+const AI_CHAT_ENABLE_CONVERSATIONS = /^(true|1)$/i.test(process.env.AI_CHAT_ENABLE_CONVERSATIONS ?? "");
 
 if (!AI_CHAT_BASE_URL) {
   throw new Error("AI_CHAT_BASE_URL is required")
@@ -87,11 +88,27 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             content: {
               type: "string",
               description: `The content of the chat to send to ${AI_CHAT_NAME}`,
-            }
+            },
+            ...(AI_CHAT_ENABLE_CONVERSATIONS ? {
+              conversationId: {
+                type: "string",
+                description: `An existing conversation ID (from start-conversation-with-${AI_CHAT_NAME_CLEAN}) to continue a multi-turn conversation with full prior context, instead of a stateless single-turn exchange.`,
+              }
+            } : {}),
           },
           required: ["content"]
         }
-      }
+      },
+      ...(AI_CHAT_ENABLE_CONVERSATIONS ? [
+        {
+          name: `start-conversation-with-${AI_CHAT_NAME_CLEAN}`,
+          description: `Start a new durable multi-turn conversation with ${AI_CHAT_NAME}. Returns a conversation ID to pass as conversationId on subsequent chat-with-${AI_CHAT_NAME_CLEAN} calls.`,
+          inputSchema: {
+            type: "object",
+            properties: {},
+          }
+        }
+      ] : []),
     ]
   };
 });
@@ -100,6 +117,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
  * Handler for the chat tool.
  * Connects to an OpenAI SDK compatible AI Integration.
  */
+function toErrorResult(error: any, fallbackMessage: string) {
+  const errorMessage = error?.response?.data?.error?.message || error?.message || fallbackMessage;
+  console.error(fallbackMessage, errorMessage);
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: `Error: ${errorMessage}`
+      }
+    ],
+    isError: true
+  };
+}
+
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (request.params.name) {
     case `chat-with-${AI_CHAT_NAME_CLEAN}`: {
@@ -107,12 +138,46 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!content) {
         throw new Error("Content is required")
       }
+      const conversationId = request.params.arguments?.conversationId;
+
+      if (conversationId !== undefined && !AI_CHAT_ENABLE_CONVERSATIONS) {
+        return toErrorResult(
+          new Error(`conversationId was supplied but conversation mode is disabled. Set AI_CHAT_ENABLE_CONVERSATIONS=true to enable it.`),
+          'Conversation mode is not enabled'
+        );
+      }
 
       const client = new OpenAI({
         apiKey: AI_CHAT_KEY,
         baseURL: AI_CHAT_BASE_URL,
         timeout: parseInt(`${AI_CHAT_TIMEOUT}`, 10),
       });
+
+      if (conversationId) {
+        try {
+          const response = await client.responses.create({
+            model: AI_CHAT_MODEL.trim(),
+            conversation: String(conversationId),
+            input: content,
+            ...(AI_CHAT_SYSTEM_PROMPT ? { instructions: AI_CHAT_SYSTEM_PROMPT } : {}),
+          });
+
+          if (!response.output_text) {
+            throw new Error('No response content received from API');
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: response.output_text
+              }
+            ]
+          };
+        } catch (error: any) {
+          return toErrorResult(error, 'Response creation error:');
+        }
+      }
 
       try {
         const chatCompletion = await client.chat.completions.create({
@@ -124,7 +189,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
 
         const responseContent = chatCompletion.choices[0]?.message?.content;
-        
+
         if (!responseContent) {
           throw new Error('No response content received from API');
         }
@@ -138,18 +203,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ]
         };
       } catch (error: any) {
-        const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error occurred';
-        console.error('Chat completion error:', errorMessage);
-        
+        return toErrorResult(error, 'Chat completion error:');
+      }
+    }
+
+    case `start-conversation-with-${AI_CHAT_NAME_CLEAN}`: {
+      if (!AI_CHAT_ENABLE_CONVERSATIONS) {
+        return toErrorResult(new Error('Conversation mode is not enabled'), 'Conversation mode is not enabled');
+      }
+
+      const client = new OpenAI({
+        apiKey: AI_CHAT_KEY,
+        baseURL: AI_CHAT_BASE_URL,
+        timeout: parseInt(`${AI_CHAT_TIMEOUT}`, 10),
+      });
+
+      try {
+        const conversation = await client.conversations.create();
         return {
           content: [
             {
               type: "text",
-              text: `Error: ${errorMessage}`
+              text: conversation.id
             }
-          ],
-          isError: true
+          ]
         };
+      } catch (error: any) {
+        return toErrorResult(error, 'Conversation creation error:');
       }
     }
 

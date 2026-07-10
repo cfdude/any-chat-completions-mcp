@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "active": "openai-sdk-modernization",
+  "epics": [
+    {
+      "id": "openai-sdk-modernization",
+      "title": "Upgrade openai SDK v4.73.1 to v6.x (prerequisite)",
+      "priority": "P0",
+      "status": "active",
+      "role": "epic",
+      "lane": "claude-code",
+      "links": [],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "conversations-api-support",
+      "title": "Opt-in OpenAI Conversations API support (durable multi-turn state)",
+      "priority": "P1",
+      "status": "queued",
+      "role": "epic",
+      "lane": "openspec",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "openai-sdk-modernization",
+          "reason": "needs the responses/conversations resources added in openai v6"
+        },
+        {
+          "type": "relates-to",
+          "epic": "responses-api-chaining",
+          "reason": "alternative lighter-weight approach to the same problem; pick one or both"
+        }
+      ],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "responses-api-chaining",
+      "title": "Opt-in Responses API mode with previous_response_id chaining",
+      "priority": "P2",
+      "status": "queued",
+      "role": "epic",
+      "lane": "openspec",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "openai-sdk-modernization",
+          "reason": "needs the responses resource added in openai v6"
+        },
+        {
+          "type": "relates-to",
+          "epic": "conversations-api-support",
+          "reason": "alternative lighter-weight approach to the same problem; pick one or both"
+        }
+      ],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "multimodal-input",
+      "title": "Accept multimodal input (images/files) in chat tool schema",
+      "priority": "P2",
+      "status": "queued",
+      "role": "epic",
+      "lane": "superpowers",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "openai-sdk-modernization",
+          "reason": "widen message content types on the upgraded SDK"
+        }
+      ],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "structured-outputs",
+      "title": "Support structured (JSON schema-constrained) outputs",
+      "priority": "P2",
+      "status": "queued",
+      "role": "epic",
+      "lane": "superpowers",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "openai-sdk-modernization",
+          "reason": "uses text.format / response_format on the upgraded SDK"
+        }
+      ],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "retry-backoff-config",
+      "title": "Expose retry/backoff configuration (AI_CHAT_MAX_RETRIES etc.)",
+      "priority": "P3",
+      "status": "queued",
+      "role": "epic",
+      "lane": "claude-code",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "openai-sdk-modernization",
+          "reason": "relies on v6's improved retry/backoff handling"
+        }
+      ],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "native-tools-support",
+      "title": "Native tool support (web_search, file_search, code_interpreter) via Responses API",
+      "priority": "P3",
+      "status": "queued",
+      "role": "epic",
+      "lane": "openspec",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "openai-sdk-modernization",
+          "reason": "needs the responses resource"
+        },
+        {
+          "type": "depends-on",
+          "epic": "responses-api-chaining",
+          "reason": "builds on the Responses API integration"
+        }
+      ],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "streaming-progress-notifications",
+      "title": "Stream partial output via MCP progress notifications",
+      "priority": "P3",
+      "status": "queued",
+      "role": "epic",
+      "lane": "openspec",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "openai-sdk-modernization",
+          "reason": "needs streaming support from the upgraded SDK"
+        }
+      ],
+      "reconcileNeeded": false
+    }
+  ],
+  "detourStack": [],
+  "pmVersion": "0.7.0"
+}

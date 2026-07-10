@@ -16,16 +16,18 @@
     "inspector": "npx @modelcontextprotocol/inspector build/index.js",
     "clean": "rm -rf build",
     "npm-publish": "npm run clean && npm run build && npm publish --access=public",
-    "start": "node build/cli.js"
+    "start": "node build/cli.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",
     "dotenv": "^16.4.5",
-    "openai": "^4.73.1"
+    "openai": "^6.46.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.10"
   },
   "overrides": {
     "form-data": "^4.0.4"

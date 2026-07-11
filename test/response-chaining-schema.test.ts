@@ -44,6 +44,21 @@ describe("previousResponseId: schema and validation guards", () => {
     expect(result.content[0].text).toMatch(/mutually exclusive/i);
   });
 
+  it("does not silently fall back to the stateless path when previousResponseId is an empty string", async () => {
+    // Regression test: routing must key off `!== undefined`, not truthiness — an empty
+    // string is a real (if malformed) argument, not "absent", and must still error rather
+    // than silently executing an unthreaded Chat Completions call.
+    server = await startTestServer({ AI_CHAT_ENABLE_CONVERSATIONS: "true" });
+    const result: any = await server.client.callTool({
+      name: "chat-with-test-bot",
+      arguments: { content: "hi", previousResponseId: "" },
+    });
+    // With conversation mode enabled and a Responses-API call attempted against an
+    // unreachable base URL, this must surface as an error from the attempted call —
+    // never as a silent, successful stateless reply.
+    expect(result.isError).toBe(true);
+  });
+
   it("reports the mode-disabled error (not mutual exclusion) when both params are supplied and mode is disabled", async () => {
     server = await startTestServer();
     const result: any = await server.client.callTool({

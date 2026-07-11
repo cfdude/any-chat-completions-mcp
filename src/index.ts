@@ -165,14 +165,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         timeout: parseInt(`${AI_CHAT_TIMEOUT}`, 10),
       });
 
-      if (conversationId || previousResponseId) {
+      if (conversationId !== undefined || previousResponseId !== undefined) {
         try {
           const response = await client.responses.create({
             model: AI_CHAT_MODEL.trim(),
             input: content,
             store: true,
-            ...(conversationId ? { conversation: String(conversationId) } : {}),
-            ...(previousResponseId ? { previous_response_id: String(previousResponseId) } : {}),
+            ...(conversationId !== undefined ? { conversation: String(conversationId) } : {}),
+            ...(previousResponseId !== undefined ? { previous_response_id: String(previousResponseId) } : {}),
             ...(AI_CHAT_SYSTEM_PROMPT ? { instructions: AI_CHAT_SYSTEM_PROMPT } : {}),
           });
 

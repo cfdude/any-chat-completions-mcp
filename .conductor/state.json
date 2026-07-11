@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "active": "responses-api-chaining",
+  "active": null,
   "epics": [
     {
       "id": "openai-sdk-modernization",
@@ -37,7 +37,7 @@
       "id": "responses-api-chaining",
       "title": "Opt-in Responses API mode with previous_response_id chaining",
       "priority": "P2",
-      "status": "active",
+      "status": "archived",
       "role": "epic",
       "lane": "openspec",
       "links": [

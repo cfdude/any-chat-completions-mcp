@@ -93,6 +93,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               conversationId: {
                 type: "string",
                 description: `An existing conversation ID (from start-conversation-with-${AI_CHAT_NAME_CLEAN}) to continue a multi-turn conversation with full prior context, instead of a stateless single-turn exchange.`,
+              },
+              previousResponseId: {
+                type: "string",
+                description: `The response ID (from a prior conversation-mode reply's "conversationResponseId:" marker) to chain this call to, as a lighter-weight alternative to conversationId with no durable conversation object. Mutually exclusive with conversationId.`,
               }
             } : {}),
           },
@@ -139,11 +143,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         throw new Error("Content is required")
       }
       const conversationId = request.params.arguments?.conversationId;
+      const previousResponseId = request.params.arguments?.previousResponseId;
 
-      if (conversationId !== undefined && !AI_CHAT_ENABLE_CONVERSATIONS) {
+      if ((conversationId !== undefined || previousResponseId !== undefined) && !AI_CHAT_ENABLE_CONVERSATIONS) {
         return toErrorResult(
-          new Error(`conversationId was supplied but conversation mode is disabled. Set AI_CHAT_ENABLE_CONVERSATIONS=true to enable it.`),
+          new Error(`conversationId/previousResponseId was supplied but conversation mode is disabled. Set AI_CHAT_ENABLE_CONVERSATIONS=true to enable it.`),
           'Conversation mode is not enabled'
+        );
+      }
+
+      if (conversationId !== undefined && previousResponseId !== undefined) {
+        return toErrorResult(
+          new Error(`conversationId and previousResponseId are mutually exclusive; supply only one.`),
+          'Invalid arguments'
         );
       }
 
@@ -153,12 +165,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         timeout: parseInt(`${AI_CHAT_TIMEOUT}`, 10),
       });
 
-      if (conversationId) {
+      if (conversationId || previousResponseId) {
         try {
           const response = await client.responses.create({
             model: AI_CHAT_MODEL.trim(),
-            conversation: String(conversationId),
             input: content,
+            store: true,
+            ...(conversationId ? { conversation: String(conversationId) } : {}),
+            ...(previousResponseId ? { previous_response_id: String(previousResponseId) } : {}),
             ...(AI_CHAT_SYSTEM_PROMPT ? { instructions: AI_CHAT_SYSTEM_PROMPT } : {}),
           });
 
@@ -171,6 +185,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               {
                 type: "text",
                 text: response.output_text
+              },
+              {
+                type: "text",
+                text: `conversationResponseId: ${response.id}`
               }
             ]
           };

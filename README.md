@@ -164,9 +164,12 @@ By default, every `chat-with-{name}` call is a fresh, stateless exchange — the
 }
 ```
 
-With this enabled, two things change:
+With this enabled, three things change:
 - A new tool, `start-conversation-with-{name}`, creates a durable conversation and returns its ID.
 - `chat-with-{name}` accepts an optional `conversationId` argument. Pass the ID from `start-conversation-with-{name}` to thread a call through that conversation's full history instead of starting fresh; omit it for the original stateless behavior.
+- `chat-with-{name}` also accepts an optional `previousResponseId` argument — a lighter-weight alternative that doesn't require creating a conversation object at all. Every conversation-mode reply (via either `conversationId` or `previousResponseId`) now includes a second line in its output reading `conversationResponseId: <id>`; pass that value as `previousResponseId` on your next call to keep the thread going. `conversationId` and `previousResponseId` are mutually exclusive — supply only one per call.
+
+Use `conversationId` for a named, durable conversation you'll return to across sessions; use `previousResponseId` for a quick back-and-forth you don't need to track by name (it has no separate "start" step, and nothing to clean up beyond OpenAI's normal response retention).
 
 **This only works against real OpenAI**, or a provider that separately documents support for the Conversations/Responses APIs. Most "OpenAI SDK compatible" providers (Perplexity, Groq, xAI, local models, etc.) only implement Chat Completions and will return an API error if you enable this flag against them. Leave the flag unset (the default) for any non-OpenAI provider.
 

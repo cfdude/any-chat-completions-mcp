@@ -107,6 +107,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               },
               description: `Optional files (e.g. PDFs) to send alongside content. Not supported together with conversationId/previousResponseId.`,
             },
+            responseSchema: {
+              type: "object",
+              description: `Optional JSON Schema to constrain the reply to structured JSON matching this schema. Not supported together with conversationId/previousResponseId.`,
+            },
+            responseSchemaName: {
+              type: "string",
+              description: `Name for the response format when responseSchema is supplied (default: "response").`,
+            },
+            strict: {
+              type: "boolean",
+              description: `Whether to strictly enforce responseSchema (default: true). Only used when responseSchema is supplied.`,
+            },
             ...(AI_CHAT_ENABLE_CONVERSATIONS ? {
               conversationId: {
                 type: "string",
@@ -209,6 +221,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
       }
 
+      const responseSchema = request.params.arguments?.responseSchema;
+      const responseSchemaName = request.params.arguments?.responseSchemaName;
+      const strict = request.params.arguments?.strict;
+
+      if (responseSchema !== undefined && (typeof responseSchema !== "object" || responseSchema === null || Array.isArray(responseSchema))) {
+        return toErrorResult(new Error('responseSchema must be a JSON Schema object'), 'Invalid arguments');
+      }
+      if (responseSchemaName !== undefined && typeof responseSchemaName !== "string") {
+        return toErrorResult(new Error('responseSchemaName must be a string'), 'Invalid arguments');
+      }
+      if (strict !== undefined && typeof strict !== "boolean") {
+        return toErrorResult(new Error('strict must be a boolean'), 'Invalid arguments');
+      }
+
+      if (responseSchema !== undefined && isThreaded) {
+        return toErrorResult(
+          new Error(`responseSchema is not supported together with conversationId/previousResponseId in this version.`),
+          'Invalid arguments'
+        );
+      }
+
+      const responseFormat = responseSchema !== undefined ? {
+        type: "json_schema" as const,
+        json_schema: {
+          name: typeof responseSchemaName === "string" ? responseSchemaName : "response",
+          schema: responseSchema as Record<string, unknown>,
+          strict: typeof strict === "boolean" ? strict : true,
+        },
+      } : undefined;
+
       const messageContent: string | Array<Record<string, unknown>> = hasAttachments
         ? [
             { type: "text", text: content },
@@ -265,6 +307,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             { role: 'user' as const, content: messageContent as any }
           ],
           model: AI_CHAT_MODEL.trim(), // Trim to remove any whitespace
+          ...(responseFormat ? { response_format: responseFormat } : {}),
         });
 
         const responseContent = chatCompletion.choices[0]?.message?.content;

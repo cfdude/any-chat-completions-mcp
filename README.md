@@ -189,6 +189,23 @@ chat-with-openai({
 
 When either is supplied, the underlying request sends a multi-part message (text + image/file parts) instead of a plain string; when neither is supplied, behavior is exactly as before. This currently works only on the default stateless (Chat Completions) path — combining `images`/`files` with `conversationId`/`previousResponseId` returns an error, since the Responses API used by conversation mode has a different content-part shape for images/files that isn't wired up yet.
 
+### Structured (JSON schema-constrained) output
+
+`chat-with-{name}` accepts an optional `responseSchema` argument (a JSON Schema object) to constrain the reply to structured JSON matching that schema, plus two optional companions: `responseSchemaName` (defaults to `"response"`) and `strict` (defaults to `true`, matching OpenAI's recommended setting for exact schema adherence):
+
+```
+chat-with-openai({
+  content: "Extract the name and age from: Alice is 30.",
+  responseSchema: {
+    type: "object",
+    properties: { name: { type: "string" }, age: { type: "number" } },
+    required: ["name", "age"]
+  }
+})
+```
+
+The reply's text is the model's raw JSON string matching your schema, ready to `JSON.parse`. Like multimodal input, this currently works only on the default stateless path — combining `responseSchema` with `conversationId`/`previousResponseId` returns an error, since the Responses API used by conversation mode configures structured outputs via a different field (`text.format` rather than `response_format`) that isn't wired up yet.
+
 ### Installing via Smithery
 
 To install Any OpenAI Compatible API Integrations for Claude Desktop automatically via [Smithery](https://smithery.ai/server/any-chat-completions-mcp-server):

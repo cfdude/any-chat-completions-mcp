@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "active": "multimodal-input",
+  "active": "structured-outputs",
   "epics": [
     {
       "id": "openai-sdk-modernization",
@@ -58,7 +58,7 @@
       "id": "multimodal-input",
       "title": "Accept multimodal input (images/files) in chat tool schema",
       "priority": "P2",
-      "status": "active",
+      "status": "archived",
       "role": "epic",
       "lane": "superpowers",
       "links": [
@@ -74,7 +74,7 @@
       "id": "structured-outputs",
       "title": "Support structured (JSON schema-constrained) outputs",
       "priority": "P2",
-      "status": "queued",
+      "status": "active",
       "role": "epic",
       "lane": "superpowers",
       "links": [

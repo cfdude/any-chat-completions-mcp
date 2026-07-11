@@ -100,9 +100,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 type: "object",
                 properties: {
                   filename: { type: "string" },
-                  data: { type: "string", description: "Base64-encoded file contents" },
+                  mimeType: { type: "string", description: "e.g. application/pdf" },
+                  data: { type: "string", description: "Base64-encoded file contents (no data: prefix - it is added automatically)" },
                 },
-                required: ["filename", "data"],
+                required: ["filename", "mimeType", "data"],
               },
               description: `Optional files (e.g. PDFs) to send alongside content. Not supported together with conversationId/previousResponseId.`,
             },
@@ -161,10 +162,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       const conversationId = request.params.arguments?.conversationId;
       const previousResponseId = request.params.arguments?.previousResponseId;
-      const images = request.params.arguments?.images as string[] | undefined;
-      const files = request.params.arguments?.files as { filename: string; data: string }[] | undefined;
+      const images = request.params.arguments?.images;
+      const files = request.params.arguments?.files;
       const isThreaded = conversationId !== undefined || previousResponseId !== undefined;
-      const hasAttachments = (images !== undefined && images.length > 0) || (files !== undefined && files.length > 0);
+
+      if (images !== undefined && !Array.isArray(images)) {
+        return toErrorResult(new Error('images must be an array of strings'), 'Invalid arguments');
+      }
+      if (images !== undefined && !images.every((url: unknown) => typeof url === "string")) {
+        return toErrorResult(new Error('images must be an array of strings'), 'Invalid arguments');
+      }
+      if (files !== undefined && (
+        !Array.isArray(files) ||
+        !files.every((f: unknown) =>
+          typeof f === "object" && f !== null &&
+          typeof (f as any).filename === "string" &&
+          typeof (f as any).mimeType === "string" &&
+          typeof (f as any).data === "string"
+        )
+      )) {
+        return toErrorResult(new Error('files must be an array of { filename, mimeType, data } objects'), 'Invalid arguments');
+      }
+
+      const imageList = images as string[] | undefined;
+      const fileList = files as { filename: string; mimeType: string; data: string }[] | undefined;
+      const hasAttachments = (imageList !== undefined && imageList.length > 0) || (fileList !== undefined && fileList.length > 0);
 
       if (isThreaded && !AI_CHAT_ENABLE_CONVERSATIONS) {
         return toErrorResult(
@@ -190,8 +212,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const messageContent: string | Array<Record<string, unknown>> = hasAttachments
         ? [
             { type: "text", text: content },
-            ...(images ?? []).map((url) => ({ type: "image_url", image_url: { url } })),
-            ...(files ?? []).map((f) => ({ type: "file", file: { filename: f.filename, file_data: f.data } })),
+            ...(imageList ?? []).map((url) => ({ type: "image_url", image_url: { url } })),
+            ...(fileList ?? []).map((f) => ({
+              type: "file",
+              file: { filename: f.filename, file_data: `data:${f.mimeType};base64,${f.data}` }
+            })),
           ]
         : content;
 

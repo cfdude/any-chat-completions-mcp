@@ -178,7 +178,7 @@ Use `conversationId` for a named, durable conversation you'll return to across s
 `chat-with-{name}` accepts two optional arguments alongside `content` for vision/document-capable models:
 
 - `images`: an array of image URLs or `data:` URIs.
-- `files`: an array of `{ filename, data }` objects, where `data` is base64-encoded file content (e.g. a PDF).
+- `files`: an array of `{ filename, mimeType, data }` objects, where `data` is base64-encoded file content (e.g. a PDF) — the server constructs the required `data:<mimeType>;base64,<data>` URI for you.
 
 ```
 chat-with-openai({

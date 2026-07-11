@@ -41,6 +41,36 @@ describe("chat-with-{name}: multimodal input (images/files)", () => {
     expect(req!.body.messages.at(-1).content).toBe("hello");
   });
 
+  it("sends plain string content when images/files are explicitly empty arrays", async () => {
+    mock = await startMockOpenAIServer({
+      chatCompletions: () => ({
+        status: 200,
+        json: {
+          id: "chatcmpl_empty", object: "chat.completion", created: 0, model: "test-model",
+          choices: [{ index: 0, message: { role: "assistant", content: "plain reply" }, finish_reason: "stop" }],
+        },
+      }),
+    });
+    server = await startTestServer({ AI_CHAT_BASE_URL: mock.baseURL });
+
+    await server.client.callTool({
+      name: "chat-with-test-bot",
+      arguments: { content: "hello", images: [], files: [] },
+    });
+
+    const req = mock.requests.find((r) => r.path.includes("/chat/completions"));
+    expect(req!.body.messages.at(-1).content).toBe("hello");
+  });
+
+  it("returns isError without crashing on malformed files entries", async () => {
+    server = await startTestServer();
+    const result: any = await server.client.callTool({
+      name: "chat-with-test-bot",
+      arguments: { content: "hi", files: [{ filename: "x.pdf" }] },
+    });
+    expect(result.isError).toBe(true);
+  });
+
   it("sends a content-parts array with a text part and an image_url part when images are supplied", async () => {
     mock = await startMockOpenAIServer({
       chatCompletions: () => ({
@@ -85,15 +115,17 @@ describe("chat-with-{name}: multimodal input (images/files)", () => {
       name: "chat-with-test-bot",
       arguments: {
         content: "summarize this",
-        files: [{ filename: "doc.pdf", data: "YmFzZTY0LWRhdGE=" }],
+        files: [{ filename: "doc.pdf", mimeType: "application/pdf", data: "YmFzZTY0LWRhdGE=" }],
       },
     });
 
     const req = mock.requests.find((r) => r.path.includes("/chat/completions"));
     const lastMessageContent = req!.body.messages.at(-1).content;
+    // file_data must be a full data: URI (data:<mime>;base64,<data>), not bare base64 -
+    // OpenAI's file-inputs API rejects/mis-parses raw base64 without the prefix.
     expect(lastMessageContent).toEqual([
       { type: "text", text: "summarize this" },
-      { type: "file", file: { filename: "doc.pdf", file_data: "YmFzZTY0LWRhdGE=" } },
+      { type: "file", file: { filename: "doc.pdf", file_data: "data:application/pdf;base64,YmFzZTY0LWRhdGE=" } },
     ]);
   });
 
@@ -114,7 +146,7 @@ describe("chat-with-{name}: multimodal input (images/files)", () => {
       arguments: {
         content: "look at both",
         images: ["https://example.com/a.png"],
-        files: [{ filename: "b.pdf", data: "ZGF0YQ==" }],
+        files: [{ filename: "b.pdf", mimeType: "application/pdf", data: "ZGF0YQ==" }],
       },
     });
 

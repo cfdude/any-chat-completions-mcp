@@ -43,6 +43,20 @@ describe("native tools: schema and validation guards", () => {
     expect(result.isError).toBe(true);
   });
 
+  it("reports the invalid-tool-name shape error, not the mode-disabled error, when both are wrong at once", async () => {
+    // Shape validation runs first (step 0), before the mode-disabled guard (step 1) -
+    // an established, pre-existing convention (images/files/responseSchema shape checks
+    // already ran before the mode-disabled guard prior to this epic).
+    server = await startTestServer(); // conversation mode disabled
+    const result: any = await server.client.callTool({
+      name: "chat-with-test-bot",
+      arguments: { content: "hi", tools: ["not_a_real_tool"] },
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/web_search.*code_interpreter|tools must be/i);
+    expect(result.content[0].text).not.toMatch(/conversation mode is not enabled/i);
+  });
+
   it("returns isError when tools is combined with images", async () => {
     server = await startTestServer({ AI_CHAT_ENABLE_CONVERSATIONS: "true" });
     const result: any = await server.client.callTool({

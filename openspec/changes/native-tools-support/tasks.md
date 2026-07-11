@@ -7,6 +7,7 @@
 - [x] 1.5 Write a failing test: `tools: []` (empty array) behaves identically to omitting `tools` (falls through to Chat Completions when no threading params are present).
 - [x] 1.6 Write a failing test: `tools` + `images` + `conversationId` supplied together returns the tools-vs-attachments error specifically (NOT the pre-existing attachments-vs-threading error) — pins the guard ordering decided in design.md.
 - [x] 1.7 Write a regression test (should already pass, since it's pre-existing behavior): `images`/`files` + `conversationId`, with NO `tools` at all, still returns the pre-existing "images/files are not supported together with conversationId/previousResponseId" error unchanged.
+- [x] 1.8 Write a test (Gate 2 follow-up): invalid `tools` value + conversation mode disabled reports the shape-validation error, not the mode-disabled error — confirms shape checks (step 0) run before all semantic guards, for every argument, not just `tools`.
 
 ## 2. Schema and validation (GREEN)
 

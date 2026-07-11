@@ -21,6 +21,7 @@ const AI_CHAT_KEY = process.env.AI_CHAT_KEY;
 const AI_CHAT_MODEL = process.env.AI_CHAT_MODEL;
 const AI_CHAT_NAME = process.env.AI_CHAT_NAME;
 const AI_CHAT_TIMEOUT = process.env.AI_CHAT_TIMEOUT || "30000";
+const AI_CHAT_MAX_RETRIES = process.env.AI_CHAT_MAX_RETRIES !== undefined ? parseInt(process.env.AI_CHAT_MAX_RETRIES, 10) : undefined;
 const AI_CHAT_SYSTEM_PROMPT = process.env.AI_CHAT_SYSTEM_PROMPT;
 const AI_CHAT_ENABLE_CONVERSATIONS = /^(true|1)$/i.test(process.env.AI_CHAT_ENABLE_CONVERSATIONS ?? "");
 
@@ -266,6 +267,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         apiKey: AI_CHAT_KEY,
         baseURL: AI_CHAT_BASE_URL,
         timeout: parseInt(`${AI_CHAT_TIMEOUT}`, 10),
+        ...(AI_CHAT_MAX_RETRIES !== undefined ? { maxRetries: AI_CHAT_MAX_RETRIES } : {}),
       });
 
       if (conversationId !== undefined || previousResponseId !== undefined) {
@@ -338,6 +340,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         apiKey: AI_CHAT_KEY,
         baseURL: AI_CHAT_BASE_URL,
         timeout: parseInt(`${AI_CHAT_TIMEOUT}`, 10),
+        ...(AI_CHAT_MAX_RETRIES !== undefined ? { maxRetries: AI_CHAT_MAX_RETRIES } : {}),
       });
 
       try {

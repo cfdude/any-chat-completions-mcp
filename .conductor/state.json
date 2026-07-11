@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "active": "structured-outputs",
+  "active": "retry-backoff-config",
   "epics": [
     {
       "id": "openai-sdk-modernization",
@@ -74,7 +74,7 @@
       "id": "structured-outputs",
       "title": "Support structured (JSON schema-constrained) outputs",
       "priority": "P2",
-      "status": "active",
+      "status": "archived",
       "role": "epic",
       "lane": "superpowers",
       "links": [
@@ -90,7 +90,7 @@
       "id": "retry-backoff-config",
       "title": "Expose retry/backoff configuration (AI_CHAT_MAX_RETRIES etc.)",
       "priority": "P3",
-      "status": "queued",
+      "status": "active",
       "role": "epic",
       "lane": "claude-code",
       "links": [

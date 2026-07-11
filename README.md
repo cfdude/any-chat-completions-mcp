@@ -206,6 +206,12 @@ chat-with-openai({
 
 The reply's text is the model's raw JSON string matching your schema, ready to `JSON.parse`. Like multimodal input, this currently works only on the default stateless path — combining `responseSchema` with `conversationId`/`previousResponseId` returns an error, since the Responses API used by conversation mode configures structured outputs via a different field (`text.format` rather than `response_format`) that isn't wired up yet.
 
+### Additional configuration
+
+- `AI_CHAT_TIMEOUT`: request timeout in milliseconds (default `30000`).
+- `AI_CHAT_SYSTEM_PROMPT`: an optional system/instructions prompt applied to every call.
+- `AI_CHAT_MAX_RETRIES`: how many times the underlying SDK retries a failed request before giving up (default: the SDK's own default of `2`, i.e. 3 total attempts). Set to `0` to disable retries entirely.
+
 ### Installing via Smithery
 
 To install Any OpenAI Compatible API Integrations for Claude Desktop automatically via [Smithery](https://smithery.ai/server/any-chat-completions-mcp-server):

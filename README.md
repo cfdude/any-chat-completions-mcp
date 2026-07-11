@@ -173,6 +173,22 @@ Use `conversationId` for a named, durable conversation you'll return to across s
 
 **This only works against real OpenAI**, or a provider that separately documents support for the Conversations/Responses APIs. Most "OpenAI SDK compatible" providers (Perplexity, Groq, xAI, local models, etc.) only implement Chat Completions and will return an API error if you enable this flag against them. Leave the flag unset (the default) for any non-OpenAI provider.
 
+### Multimodal input (images and files)
+
+`chat-with-{name}` accepts two optional arguments alongside `content` for vision/document-capable models:
+
+- `images`: an array of image URLs or `data:` URIs.
+- `files`: an array of `{ filename, data }` objects, where `data` is base64-encoded file content (e.g. a PDF).
+
+```
+chat-with-openai({
+  content: "What's in this image?",
+  images: ["https://example.com/photo.jpg"]
+})
+```
+
+When either is supplied, the underlying request sends a multi-part message (text + image/file parts) instead of a plain string; when neither is supplied, behavior is exactly as before. This currently works only on the default stateless (Chat Completions) path — combining `images`/`files` with `conversationId`/`previousResponseId` returns an error, since the Responses API used by conversation mode has a different content-part shape for images/files that isn't wired up yet.
+
 ### Installing via Smithery
 
 To install Any OpenAI Compatible API Integrations for Claude Desktop automatically via [Smithery](https://smithery.ai/server/any-chat-completions-mcp-server):

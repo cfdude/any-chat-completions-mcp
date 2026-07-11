@@ -89,6 +89,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description: `The content of the chat to send to ${AI_CHAT_NAME}`,
             },
+            images: {
+              type: "array",
+              items: { type: "string" },
+              description: `Optional image URLs or data: URIs to send alongside content (vision-capable models only). Not supported together with conversationId/previousResponseId.`,
+            },
+            files: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  filename: { type: "string" },
+                  data: { type: "string", description: "Base64-encoded file contents" },
+                },
+                required: ["filename", "data"],
+              },
+              description: `Optional files (e.g. PDFs) to send alongside content. Not supported together with conversationId/previousResponseId.`,
+            },
             ...(AI_CHAT_ENABLE_CONVERSATIONS ? {
               conversationId: {
                 type: "string",
@@ -144,8 +161,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       const conversationId = request.params.arguments?.conversationId;
       const previousResponseId = request.params.arguments?.previousResponseId;
+      const images = request.params.arguments?.images as string[] | undefined;
+      const files = request.params.arguments?.files as { filename: string; data: string }[] | undefined;
+      const isThreaded = conversationId !== undefined || previousResponseId !== undefined;
+      const hasAttachments = (images !== undefined && images.length > 0) || (files !== undefined && files.length > 0);
 
-      if ((conversationId !== undefined || previousResponseId !== undefined) && !AI_CHAT_ENABLE_CONVERSATIONS) {
+      if (isThreaded && !AI_CHAT_ENABLE_CONVERSATIONS) {
         return toErrorResult(
           new Error(`conversationId/previousResponseId was supplied but conversation mode is disabled. Set AI_CHAT_ENABLE_CONVERSATIONS=true to enable it.`),
           'Conversation mode is not enabled'
@@ -158,6 +179,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           'Invalid arguments'
         );
       }
+
+      if (hasAttachments && isThreaded) {
+        return toErrorResult(
+          new Error(`images/files are not supported together with conversationId/previousResponseId in this version.`),
+          'Invalid arguments'
+        );
+      }
+
+      const messageContent: string | Array<Record<string, unknown>> = hasAttachments
+        ? [
+            { type: "text", text: content },
+            ...(images ?? []).map((url) => ({ type: "image_url", image_url: { url } })),
+            ...(files ?? []).map((f) => ({ type: "file", file: { filename: f.filename, file_data: f.data } })),
+          ]
+        : content;
 
       const client = new OpenAI({
         apiKey: AI_CHAT_KEY,
@@ -201,7 +237,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const chatCompletion = await client.chat.completions.create({
           messages: [
             ...(AI_CHAT_SYSTEM_PROMPT ? [{ role: 'system' as const, content: AI_CHAT_SYSTEM_PROMPT }] : []),
-            { role: 'user' as const, content: content }
+            { role: 'user' as const, content: messageContent as any }
           ],
           model: AI_CHAT_MODEL.trim(), // Trim to remove any whitespace
         });

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "active": "streaming-progress-notifications",
+  "active": null,
   "epics": [
     {
       "id": "openai-sdk-modernization",
@@ -127,7 +127,7 @@
       "id": "streaming-progress-notifications",
       "title": "Stream partial output via MCP progress notifications",
       "priority": "P3",
-      "status": "active",
+      "status": "archived",
       "role": "epic",
       "lane": "openspec",
       "links": [

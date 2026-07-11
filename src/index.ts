@@ -20,8 +20,18 @@ const AI_CHAT_BASE_URL = process.env.AI_CHAT_BASE_URL;
 const AI_CHAT_KEY = process.env.AI_CHAT_KEY;
 const AI_CHAT_MODEL = process.env.AI_CHAT_MODEL;
 const AI_CHAT_NAME = process.env.AI_CHAT_NAME;
-const AI_CHAT_TIMEOUT = process.env.AI_CHAT_TIMEOUT || "30000";
-const AI_CHAT_MAX_RETRIES = process.env.AI_CHAT_MAX_RETRIES !== undefined ? parseInt(process.env.AI_CHAT_MAX_RETRIES, 10) : undefined;
+function parseIntEnv(name: string, envValue: string | undefined, fallbackDescription: string): number | undefined {
+  if (envValue === undefined) return undefined;
+  const parsed = parseInt(envValue, 10);
+  if (Number.isNaN(parsed)) {
+    console.error(`${name}="${envValue}" is not a valid integer; using ${fallbackDescription}.`);
+    return undefined;
+  }
+  return parsed;
+}
+
+const AI_CHAT_TIMEOUT = parseIntEnv('AI_CHAT_TIMEOUT', process.env.AI_CHAT_TIMEOUT, 'the default (30000ms)') ?? 30000;
+const AI_CHAT_MAX_RETRIES = parseIntEnv('AI_CHAT_MAX_RETRIES', process.env.AI_CHAT_MAX_RETRIES, "the SDK's default (2)");
 const AI_CHAT_SYSTEM_PROMPT = process.env.AI_CHAT_SYSTEM_PROMPT;
 const AI_CHAT_ENABLE_CONVERSATIONS = /^(true|1)$/i.test(process.env.AI_CHAT_ENABLE_CONVERSATIONS ?? "");
 
@@ -266,7 +276,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const client = new OpenAI({
         apiKey: AI_CHAT_KEY,
         baseURL: AI_CHAT_BASE_URL,
-        timeout: parseInt(`${AI_CHAT_TIMEOUT}`, 10),
+        timeout: AI_CHAT_TIMEOUT,
         ...(AI_CHAT_MAX_RETRIES !== undefined ? { maxRetries: AI_CHAT_MAX_RETRIES } : {}),
       });
 
@@ -339,7 +349,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const client = new OpenAI({
         apiKey: AI_CHAT_KEY,
         baseURL: AI_CHAT_BASE_URL,
-        timeout: parseInt(`${AI_CHAT_TIMEOUT}`, 10),
+        timeout: AI_CHAT_TIMEOUT,
         ...(AI_CHAT_MAX_RETRIES !== undefined ? { maxRetries: AI_CHAT_MAX_RETRIES } : {}),
       });
 

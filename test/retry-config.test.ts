@@ -38,4 +38,17 @@ describe("AI_CHAT_MAX_RETRIES", () => {
     const attempts = mock.requests.filter((r) => r.path.includes("/chat/completions")).length;
     expect(attempts).toBe(2); // 1 initial attempt + 1 retry
   }, 20000);
+
+  it("falls back to the SDK default (2 retries) when AI_CHAT_MAX_RETRIES is not a valid integer", async () => {
+    mock = await startMockOpenAIServer({
+      chatCompletions: () => ({ status: 500, json: { error: { message: "mock server error" } } }),
+    });
+    server = await startTestServer({ AI_CHAT_BASE_URL: mock.baseURL, AI_CHAT_MAX_RETRIES: "not-a-number" });
+
+    const result: any = await server.client.callTool({ name: "chat-with-test-bot", arguments: { content: "hi" } });
+
+    expect(result.isError).toBe(true);
+    const attempts = mock.requests.filter((r) => r.path.includes("/chat/completions")).length;
+    expect(attempts).toBe(3); // SDK default of 2 retries = 3 total attempts, not silently 1
+  }, 20000);
 });

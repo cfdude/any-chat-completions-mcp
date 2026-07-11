@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "active": "conversations-api-support",
+  "active": null,
   "epics": [
     {
       "id": "openai-sdk-modernization",
@@ -16,7 +16,7 @@
       "id": "conversations-api-support",
       "title": "Opt-in OpenAI Conversations API support (durable multi-turn state)",
       "priority": "P1",
-      "status": "active",
+      "status": "archived",
       "role": "epic",
       "lane": "openspec",
       "links": [

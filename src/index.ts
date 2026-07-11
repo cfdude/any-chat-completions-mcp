@@ -138,6 +138,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               previousResponseId: {
                 type: "string",
                 description: `The response ID (from a prior conversation-mode reply's "conversationResponseId:" marker) to chain this call to, as a lighter-weight alternative to conversationId with no durable conversation object. Mutually exclusive with conversationId.`,
+              },
+              tools: {
+                type: "array",
+                items: { type: "string", enum: ["web_search", "code_interpreter"] },
+                description: `Optional native tools to enable via the Responses API (works standalone or combined with conversationId/previousResponseId). Not supported together with images/files/responseSchema.`,
               }
             } : {}),
           },
@@ -187,7 +192,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const previousResponseId = request.params.arguments?.previousResponseId;
       const images = request.params.arguments?.images;
       const files = request.params.arguments?.files;
+      const tools = request.params.arguments?.tools;
+      const responseSchema = request.params.arguments?.responseSchema;
+      const responseSchemaName = request.params.arguments?.responseSchemaName;
+      const strict = request.params.arguments?.strict;
       const isThreaded = conversationId !== undefined || previousResponseId !== undefined;
+
+      // --- Shape validation (order-independent; cheap, no side effects) ---
+
+      if (tools !== undefined && (!Array.isArray(tools) || !tools.every((t: unknown) => t === "web_search" || t === "code_interpreter"))) {
+        return toErrorResult(new Error('tools must be an array containing only "web_search" and/or "code_interpreter"'), 'Invalid arguments');
+      }
+      const toolList = tools as Array<"web_search" | "code_interpreter"> | undefined;
+      const hasTools = toolList !== undefined && toolList.length > 0;
 
       if (images !== undefined && !Array.isArray(images)) {
         return toErrorResult(new Error('images must be an array of strings'), 'Invalid arguments');
@@ -211,9 +228,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const fileList = files as { filename: string; mimeType: string; data: string }[] | undefined;
       const hasAttachments = (imageList !== undefined && imageList.length > 0) || (fileList !== undefined && fileList.length > 0);
 
-      if (isThreaded && !AI_CHAT_ENABLE_CONVERSATIONS) {
+      if (responseSchema !== undefined && (typeof responseSchema !== "object" || responseSchema === null || Array.isArray(responseSchema))) {
+        return toErrorResult(new Error('responseSchema must be a JSON Schema object'), 'Invalid arguments');
+      }
+      if (responseSchemaName !== undefined && (typeof responseSchemaName !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/.test(responseSchemaName))) {
+        return toErrorResult(new Error('responseSchemaName must be a string of 1-64 characters (letters, digits, underscores, or dashes only)'), 'Invalid arguments');
+      }
+      if (strict !== undefined && typeof strict !== "boolean") {
+        return toErrorResult(new Error('strict must be a boolean'), 'Invalid arguments');
+      }
+
+      // --- Semantic guards, in prescribed order: mode-disabled -> mutual exclusion ->
+      // tools-vs-attachments/responseSchema -> attachments/responseSchema-vs-threading -> routing ---
+
+      if ((isThreaded || hasTools) && !AI_CHAT_ENABLE_CONVERSATIONS) {
         return toErrorResult(
-          new Error(`conversationId/previousResponseId was supplied but conversation mode is disabled. Set AI_CHAT_ENABLE_CONVERSATIONS=true to enable it.`),
+          new Error(`conversationId/previousResponseId/tools was supplied but conversation mode is disabled. Set AI_CHAT_ENABLE_CONVERSATIONS=true to enable it.`),
           'Conversation mode is not enabled'
         );
       }
@@ -225,25 +255,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
       }
 
+      if (hasTools && (hasAttachments || responseSchema !== undefined)) {
+        return toErrorResult(
+          new Error(`native tools are not supported together with images/files/responseSchema in this version.`),
+          'Invalid arguments'
+        );
+      }
+
       if (hasAttachments && isThreaded) {
         return toErrorResult(
           new Error(`images/files are not supported together with conversationId/previousResponseId in this version.`),
           'Invalid arguments'
         );
-      }
-
-      const responseSchema = request.params.arguments?.responseSchema;
-      const responseSchemaName = request.params.arguments?.responseSchemaName;
-      const strict = request.params.arguments?.strict;
-
-      if (responseSchema !== undefined && (typeof responseSchema !== "object" || responseSchema === null || Array.isArray(responseSchema))) {
-        return toErrorResult(new Error('responseSchema must be a JSON Schema object'), 'Invalid arguments');
-      }
-      if (responseSchemaName !== undefined && (typeof responseSchemaName !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/.test(responseSchemaName))) {
-        return toErrorResult(new Error('responseSchemaName must be a string of 1-64 characters (letters, digits, underscores, or dashes only)'), 'Invalid arguments');
-      }
-      if (strict !== undefined && typeof strict !== "boolean") {
-        return toErrorResult(new Error('strict must be a boolean'), 'Invalid arguments');
       }
 
       if (responseSchema !== undefined && isThreaded) {
@@ -261,6 +284,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           strict: typeof strict === "boolean" ? strict : true,
         },
       } : undefined;
+
+      const toolDefinitions = hasTools
+        ? (toolList ?? []).map((t) =>
+            t === "web_search"
+              ? { type: "web_search" as const }
+              : { type: "code_interpreter" as const, container: { type: "auto" as const } }
+          )
+        : undefined;
 
       const messageContent: string | Array<Record<string, unknown>> = hasAttachments
         ? [
@@ -280,7 +311,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         ...(AI_CHAT_MAX_RETRIES !== undefined ? { maxRetries: AI_CHAT_MAX_RETRIES } : {}),
       });
 
-      if (conversationId !== undefined || previousResponseId !== undefined) {
+      if (isThreaded || hasTools) {
         try {
           const response = await client.responses.create({
             model: AI_CHAT_MODEL.trim(),
@@ -289,6 +320,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             ...(conversationId !== undefined ? { conversation: String(conversationId) } : {}),
             ...(previousResponseId !== undefined ? { previous_response_id: String(previousResponseId) } : {}),
             ...(AI_CHAT_SYSTEM_PROMPT ? { instructions: AI_CHAT_SYSTEM_PROMPT } : {}),
+            ...(toolDefinitions ? { tools: toolDefinitions } : {}),
           });
 
           if (!response.output_text) {
@@ -301,10 +333,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 type: "text",
                 text: response.output_text
               },
-              {
-                type: "text",
+              ...(isThreaded ? [{
+                type: "text" as const,
                 text: `conversationResponseId: ${response.id}`
-              }
+              }] : []),
             ]
           };
         } catch (error: any) {

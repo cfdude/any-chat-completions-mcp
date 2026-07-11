@@ -206,6 +206,24 @@ chat-with-openai({
 
 The reply's text is the model's raw JSON string matching your schema, ready to `JSON.parse`. Like multimodal input, this currently works only on the default stateless path — combining `responseSchema` with `conversationId`/`previousResponseId` returns an error, since the Responses API used by conversation mode configures structured outputs via a different field (`text.format` rather than `response_format`) that isn't wired up yet.
 
+### Native tools (web search and code execution)
+
+When conversation mode is enabled (`AI_CHAT_ENABLE_CONVERSATIONS=true`), `chat-with-{name}` accepts an optional `tools` argument — an array containing `"web_search"` and/or `"code_interpreter"`:
+
+```
+chat-with-openai({
+  content: "What's today's top tech headline?",
+  tools: ["web_search"]
+})
+```
+
+- `web_search` grounds the reply in real-time internet search results instead of only the model's training data.
+- `code_interpreter` lets the model run Python (in an auto-provisioned, ephemeral container) to compute or analyze something.
+
+Unlike `conversationId`/`previousResponseId`, `tools` works on its own — you don't need to be in a threaded conversation to use it, though you can combine `tools` with `conversationId`/`previousResponseId` in the same call if you want both. `tools` is **not** supported together with `images`/`files`/`responseSchema` (those are Chat-Completions-only features); combining them returns an error.
+
+`file_search` is intentionally not supported — it requires vector store IDs from OpenAI's separate Vector Stores API, which this server has no way to create or manage.
+
 ### Additional configuration
 
 - `AI_CHAT_TIMEOUT`: request timeout in milliseconds (default `30000`).

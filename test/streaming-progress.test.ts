@@ -88,6 +88,26 @@ describe("streaming progress notifications", () => {
     expect(notifications.length).toBe(0);
   });
 
+  it("falls back to non-streaming when progress token is present but previousResponseId is also supplied", async () => {
+    mock = await startMockOpenAIServer({
+      responses: () => ({
+        status: 200,
+        json: { id: "resp_prid", created_at: 0, output_text: "chained reply", error: null },
+      }),
+    });
+    server = await startTestServer({ AI_CHAT_ENABLE_CONVERSATIONS: "true", AI_CHAT_BASE_URL: mock.baseURL });
+
+    const notifications: any[] = [];
+    const result: any = await server.client.callTool(
+      { name: "chat-with-test-bot", arguments: { content: "hi", previousResponseId: "resp_prior" } },
+      undefined,
+      { onprogress: (p) => notifications.push(p) }
+    );
+
+    expect(result.isError).toBeFalsy();
+    expect(notifications.length).toBe(0);
+  });
+
   it("falls back to non-streaming when progress token is present but tools is also supplied", async () => {
     mock = await startMockOpenAIServer({
       responses: () => ({
@@ -129,6 +149,28 @@ describe("streaming progress notifications", () => {
     expect(notifications.length).toBe(0);
   });
 
+  it("falls back to non-streaming when progress token is present but files is also supplied", async () => {
+    mock = await startMockOpenAIServer({
+      chatCompletions: () => ({
+        status: 200,
+        json: {
+          id: "chatcmpl_files", object: "chat.completion", created: 0, model: "test-model",
+          choices: [{ index: 0, message: { role: "assistant", content: "read it" }, finish_reason: "stop" }],
+        },
+      }),
+    });
+    server = await startTestServer({ AI_CHAT_BASE_URL: mock.baseURL });
+
+    const notifications: any[] = [];
+    await server.client.callTool(
+      { name: "chat-with-test-bot", arguments: { content: "hi", files: [{ filename: "a.pdf", mimeType: "application/pdf", data: "ZGF0YQ==" }] } },
+      undefined,
+      { onprogress: (p) => notifications.push(p) }
+    );
+
+    expect(notifications.length).toBe(0);
+  });
+
   it("falls back to non-streaming when progress token is present but responseSchema is also supplied", async () => {
     mock = await startMockOpenAIServer({
       chatCompletions: () => ({
@@ -159,7 +201,7 @@ describe("streaming progress notifications", () => {
 
     const notifications: any[] = [];
     const result: any = await server.client.callTool(
-      { name: "chat-with-test-bot", arguments: { content: "hi", tools: [], images: [] } },
+      { name: "chat-with-test-bot", arguments: { content: "hi", tools: [], images: [], files: [] } },
       undefined,
       { onprogress: (p) => notifications.push(p) }
     );

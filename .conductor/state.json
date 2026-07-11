@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "active": "native-tools-support",
+  "active": "streaming-progress-notifications",
   "epics": [
     {
       "id": "openai-sdk-modernization",
@@ -106,7 +106,7 @@
       "id": "native-tools-support",
       "title": "Native tool support (web_search, file_search, code_interpreter) via Responses API",
       "priority": "P3",
-      "status": "active",
+      "status": "archived",
       "role": "epic",
       "lane": "openspec",
       "links": [
@@ -127,7 +127,7 @@
       "id": "streaming-progress-notifications",
       "title": "Stream partial output via MCP progress notifications",
       "priority": "P3",
-      "status": "queued",
+      "status": "active",
       "role": "epic",
       "lane": "openspec",
       "links": [

@@ -181,7 +181,7 @@ function toErrorResult(error: any, logLabel: string) {
   };
 }
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   switch (request.params.name) {
     case `chat-with-${AI_CHAT_NAME_CLEAN}`: {
       const content = String(request.params.arguments?.content)
@@ -341,6 +341,51 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         } catch (error: any) {
           return toErrorResult(error, 'Response creation error:');
+        }
+      }
+
+      const progressToken = request.params._meta?.progressToken;
+      const isPlainCall = !isThreaded && !hasTools && !hasAttachments && responseSchema === undefined;
+
+      if (progressToken !== undefined && isPlainCall) {
+        try {
+          const stream = await client.chat.completions.create({
+            messages: [
+              ...(AI_CHAT_SYSTEM_PROMPT ? [{ role: 'system' as const, content: AI_CHAT_SYSTEM_PROMPT }] : []),
+              { role: 'user' as const, content: content }
+            ],
+            model: AI_CHAT_MODEL.trim(),
+            stream: true,
+          });
+
+          let accumulated = "";
+          let progress = 0;
+          for await (const streamChunk of stream) {
+            const delta = streamChunk.choices[0]?.delta?.content;
+            if (typeof delta === "string" && delta.length > 0) {
+              accumulated += delta;
+              progress += 1;
+              await extra.sendNotification({
+                method: "notifications/progress",
+                params: { progressToken, progress, message: accumulated },
+              });
+            }
+          }
+
+          if (!accumulated) {
+            throw new Error('No response content received from API');
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: accumulated
+              }
+            ]
+          };
+        } catch (error: any) {
+          return toErrorResult(error, 'Chat completion error:');
         }
       }
 

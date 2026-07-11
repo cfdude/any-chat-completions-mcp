@@ -3,8 +3,19 @@ import type { AddressInfo } from "node:net";
 
 export type MockHandler = (body: any, req: http.IncomingMessage) => { status: number; json: any };
 
+/**
+ * Streaming (SSE) handler for /chat/completions when body.stream === true.
+ * `chunks` are JSON objects sent as `data: <json>\n\n` frames. If `errorAfter`
+ * is set, the connection is abruptly destroyed after that many chunks
+ * (simulating a mid-stream network error) instead of sending the `[DONE]`
+ * terminator - matching what the openai SDK's stream parser
+ * (core/streaming.ts) actually expects on the wire.
+ */
+export type SSEHandler = (body: any, req: http.IncomingMessage) => { chunks: any[]; errorAfter?: number };
+
 export interface MockServerHandlers {
   chatCompletions?: MockHandler;
+  chatCompletionsStream?: SSEHandler;
   conversations?: MockHandler;
   responses?: MockHandler;
 }
@@ -35,6 +46,22 @@ export async function startMockOpenAIServer(handlers: MockServerHandlers) {
         body = {};
       }
       requests.push({ path: req.url || "", body });
+
+      if (req.url?.includes("/chat/completions") && body.stream === true && handlers.chatCompletionsStream) {
+        const { chunks, errorAfter } = handlers.chatCompletionsStream(body, req);
+        res.writeHead(200, { "content-type": "text/event-stream" });
+        const limit = errorAfter !== undefined ? errorAfter : chunks.length;
+        for (let i = 0; i < limit; i++) {
+          res.write(`data: ${JSON.stringify(chunks[i])}\n\n`);
+        }
+        if (errorAfter !== undefined) {
+          req.socket.destroy();
+        } else {
+          res.write(`data: [DONE]\n\n`);
+          res.end();
+        }
+        return;
+      }
 
       let handler: MockHandler | undefined;
       if (req.url?.includes("/chat/completions")) handler = handlers.chatCompletions;

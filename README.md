@@ -224,6 +224,12 @@ Unlike `conversationId`/`previousResponseId`, `tools` works on its own — you d
 
 `file_search` is intentionally not supported — it requires vector store IDs from OpenAI's separate Vector Stores API, which this server has no way to create or manage.
 
+### Live progress for long replies
+
+If your MCP client supports the standard MCP progress mechanism (setting `_meta.progressToken` on a tool call and listening for `notifications/progress`), `chat-with-{name}` will stream the reply and send a progress notification after each chunk — `message` carries the full accumulated text so far, so a client can render it live instead of waiting silently for the whole reply.
+
+This only applies to the simplest call shape: plain `content`, with none of `conversationId`/`previousResponseId`/`tools`/`images`/`files`/`responseSchema` also present. If any of those is combined with a progress token, or if no progress token is supplied at all, the call falls back to the existing non-streaming behavior — you always get a valid reply either way, just without live progress in the combined-feature case. No new tool argument is needed; this is triggered purely by the client's own standard MCP request metadata.
+
 ### Additional configuration
 
 - `AI_CHAT_TIMEOUT`: request timeout in milliseconds (default `30000`).

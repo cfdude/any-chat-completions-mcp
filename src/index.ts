@@ -113,7 +113,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             responseSchemaName: {
               type: "string",
-              description: `Name for the response format when responseSchema is supplied (default: "response").`,
+              description: `Name for the response format when responseSchema is supplied (default: "response"). Letters, digits, underscores, and dashes only, max 64 characters.`,
             },
             strict: {
               type: "boolean",
@@ -228,8 +228,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (responseSchema !== undefined && (typeof responseSchema !== "object" || responseSchema === null || Array.isArray(responseSchema))) {
         return toErrorResult(new Error('responseSchema must be a JSON Schema object'), 'Invalid arguments');
       }
-      if (responseSchemaName !== undefined && typeof responseSchemaName !== "string") {
-        return toErrorResult(new Error('responseSchemaName must be a string'), 'Invalid arguments');
+      if (responseSchemaName !== undefined && (typeof responseSchemaName !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/.test(responseSchemaName))) {
+        return toErrorResult(new Error('responseSchemaName must be a string of 1-64 characters (letters, digits, underscores, or dashes only)'), 'Invalid arguments');
       }
       if (strict !== undefined && typeof strict !== "boolean") {
         return toErrorResult(new Error('strict must be a boolean'), 'Invalid arguments');

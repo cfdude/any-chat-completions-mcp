@@ -135,4 +135,13 @@ describe("chat-with-{name}: structured (JSON schema) outputs", () => {
     });
     expect(result.isError).toBe(true);
   });
+
+  it("rejects a responseSchemaName containing invalid characters", async () => {
+    server = await startTestServer();
+    const result: any = await server.client.callTool({
+      name: "chat-with-test-bot",
+      arguments: { content: "hi", responseSchema: { type: "object" }, responseSchemaName: "not a valid name!" },
+    });
+    expect(result.isError).toBe(true);
+  });
 });

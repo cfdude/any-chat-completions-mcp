@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "active": "retry-backoff-config",
+  "active": "native-tools-support",
   "epics": [
     {
       "id": "openai-sdk-modernization",
@@ -90,7 +90,7 @@
       "id": "retry-backoff-config",
       "title": "Expose retry/backoff configuration (AI_CHAT_MAX_RETRIES etc.)",
       "priority": "P3",
-      "status": "active",
+      "status": "archived",
       "role": "epic",
       "lane": "claude-code",
       "links": [
@@ -106,7 +106,7 @@
       "id": "native-tools-support",
       "title": "Native tool support (web_search, file_search, code_interpreter) via Responses API",
       "priority": "P3",
-      "status": "queued",
+      "status": "active",
       "role": "epic",
       "lane": "openspec",
       "links": [

@@ -4,3 +4,5 @@ build/
 .env*
 .DS_Store
 .DS_Store
+.conductor/render-stamp.json
+.conductor/brief.txt

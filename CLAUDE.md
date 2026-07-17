@@ -19,7 +19,11 @@ plan, or a manual list). Follow these rules:
 2. **State of record is `.conductor/state.json`.** After any change to epics, status,
    priority, or the detour stack, re-render with `/pm:status`. Never hand-edit `PROJECT.md`.
 3. **Resuming after a detour** — use `/pm:resume`. If the popped frame had
-   `reconcileOnResume`, run the reconcile gate (reconciler agent) BEFORE writing code.
+   `reconcileOnResume`, run the reconcile gate (reconciler agent) BEFORE writing code,
+   then write its verdict back durably with `record-reconcile <id> --detour <id>
+   --verdict valid|invalidated [--amendments "<a>;<b>"]` — this attaches
+   `{verdict, amendments, reconciledAt}` to the paused epic's link to the detour and
+   clears `reconcileNeeded`, instead of the judgment only ever living in conversation.
 4. **Honcho** — on every PUSH and POP, also write a one-line memory to Honcho
    ("paused X for Y" / "resumed X, reconciled vs Y") so the relationship survives outside
    this repo.
@@ -44,18 +48,28 @@ shared branch); those are out of scope regardless of autonomy level.
    the epic's full source, produce a short batch of destructive-risk-points +
    genuine-unknowns questions, get the user's answers, THEN record them:
    `set-autonomy <id> --preauthorize "<action>:<reason>"` / `--context "<note>"`, and only
-   then `set-autonomy <id> --level autonomous`.
+   then `set-autonomy <id> --level autonomous`. For routine, repeated categories of action
+   instead of enumerating each one, use the shorthand
+   `--preauthorize "category:<filesystem|network|schema|external-api>:<reason>"` — see the
+   `conductor` skill's "Epic-level autonomy" section for the exact keyword heuristic each
+   category matches at decision-rule time.
 2. **Execution-time decision rule** — check every destructive action against these, in
    order, before treating it as a stop:
-   a. Already pre-authorized in the preflight? → proceed, record via `--notify`.
+   a. Already pre-authorized in the preflight — either an exact `action` match or the
+      action falls under a granted `category` (per the category heuristic)? → proceed,
+      record via `--notify`.
    b. No backup/restore path exists? → STOP regardless of autonomy level.
-   c. Destructive but restorable (backed up first)? → WARN — log it, proceed.
+   c. Destructive but restorable (backed up first)? → WARN — `--notify` it immediately, proceed.
    d. No context to act on? → STOP — a real gap, not a false stall.
-   e. Consequential and not yet notified? → record it for the end-of-epic report.
-3. **End-of-epic report** — on completion, report what was asked, what was done, decisions
-   made in the user's absence (the WARN-class log), and an explicit "are you OK with
-   these?" checkpoint, THEN run tests. Leave room to iterate — including rewriting code —
-   if the user is not satisfied.
+   e. Consequential and not yet notified? → `--notify` it immediately, then proceed.
+3. **Notify incrementally, not at the end** — `--notify` writes durably to `state.json`'s
+   `notifications[]` the moment a WARN-class (c) or consequential (e) decision is made. Do this
+   AS EACH DECISION HAPPENS, not batched — a session can be compacted or interrupted mid-epic,
+   and anything not yet `--notify`'d is lost when that happens.
+4. **End-of-epic report** — on completion, read back the accumulated `notifications[]` and
+   report what was asked, what was done, and the decisions made in the user's absence (drawn
+   from that log, not from memory), with an explicit "are you OK with these?" checkpoint, THEN
+   run tests. Leave room to iterate — including rewriting code — if the user is not satisfied.
 
 ## Review mode
 
